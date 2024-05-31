@@ -8,6 +8,15 @@ import ReactFlow, {
 
 import "reactflow/dist/style.css";
 import CustomNode from "./CustomNode";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  setError,
+  setSelectedNode,
+  setShowSettings,
+  setMessageForSelectedNode,
+} from "../app/appSlice";
+import Sidebar from "./Sidebar";
+import { Topbar } from "./Topbar";
 
 const initialNodes = [
   {
@@ -32,17 +41,14 @@ let id = 0;
 const getId = () => `node_${id++}`;
 const initialEdges = [{ id: "e1-2", source: "1", target: "2" }];
 
-export default function FlowBoard({
-  setShowSettings,
-  selectedNode,
-  setSelectedNode,
-  message,
-}) {
+export default function FlowBoard() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [reactFlowInstance, setReactFlowInstance] = useState(null);
   const reactFlowWrapper = useRef(null);
-  //   const [error, setError] = useState(false);
+  const dispatch = useDispatch();
+  const message = useSelector((state) => state.appState.messageForSelectedNode);
+  const selectedNode = useSelector((state) => state.appState.selectedNode);
 
   const onConnect = useCallback(
     (params) => setEdges((eds) => addEdge(params, eds)),
@@ -58,12 +64,10 @@ export default function FlowBoard({
     (event) => {
       event.preventDefault();
       const type = event.dataTransfer.getData("application/reactflow");
-
       // check if the dropped element is valid
       if (typeof type === "undefined" || !type) {
         return;
       }
-
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
@@ -72,14 +76,14 @@ export default function FlowBoard({
         id: getId(),
         type: "custom",
         position,
-        data: { label: `${type} node`, value: "text node" },
+        data: { label: `node-${getId()}`, value: "text node" },
       };
-
       setNodes((nds) => nds.concat(newNode));
     },
     [reactFlowInstance, setNodes]
   );
 
+  // setting the message value in node
   useEffect(() => {
     setNodes((nodes) =>
       nodes.map((node) => {
@@ -93,52 +97,60 @@ export default function FlowBoard({
         return node;
       })
     );
-  }, [message, setNodes]);
+  }, [message, setNodes, selectedNode]);
+
+  // updating the message of selected node in setting panel
+  useEffect(() => {
+    if (selectedNode)
+      dispatch(
+        setMessageForSelectedNode({ message: selectedNode?.data?.value })
+      );
+  }, [selectedNode, dispatch]);
 
   // checking for more than one node with empty target
   function checkForNonEmptyTargetNode() {
     const allNodes = nodes.map((n) => n.id);
     const allEdgesTargets = edges.map((e) => e.target);
     const difference = allNodes.filter((n) => !allEdgesTargets.includes(n));
-    if (difference.length > 1) setError(true);
-    setTimeout(() => setError(false), 2000);
+    if (difference.length > 1) dispatch(setError({ value: true }));
+    setTimeout(() => dispatch(setError({ value: false })), 2000);
   }
 
   return (
     <>
-      {/* <div className="bg-gray-200 flex justify-end p-2">
-        {error && (
-          <span className="p-2 bg-red-200 rounded-md">Cannot Save Flow</span>
-        )}
-        <button
-          className="bg-transparent px-4 py-1 border font-medium rounded-md border-sky-600 text-sky-600"
-          onClick={() => {
-            checkForNonEmptyTargetNode();
-          }}
-        >
-          Save Changes
-        </button>
-      </div> */}
-      <ReactFlowProvider>
-        <div ref={reactFlowWrapper} style={{ width: "100%", height: "100vh" }}>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-            onInit={setReactFlowInstance}
-            nodeTypes={nodeTypes}
-            fitView
-            onNodeClick={(e, node) => {
-              setShowSettings(true);
-              setSelectedNode(node);
-            }}
-          />
+      <Topbar checkForNonEmptyTargetNode={checkForNonEmptyTargetNode} />
+      <div className="grid grid-cols-5 gap-3">
+        <div className="col-span-4">
+          <div>
+            <ReactFlowProvider>
+              <div
+                ref={reactFlowWrapper}
+                style={{ width: "100%", height: "100vh" }}
+              >
+                <ReactFlow
+                  nodes={nodes}
+                  edges={edges}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  onConnect={onConnect}
+                  onDrop={onDrop}
+                  onDragOver={onDragOver}
+                  onInit={setReactFlowInstance}
+                  nodeTypes={nodeTypes}
+                  fitView
+                  onNodeClick={(e, node) => {
+                    dispatch(setShowSettings({ value: true }));
+                    dispatch(setSelectedNode({ node }));
+                  }}
+                />
+              </div>
+            </ReactFlowProvider>
+          </div>
         </div>
-      </ReactFlowProvider>
+        <div className="p-2 border-l-2">
+          <Sidebar />
+        </div>
+      </div>
     </>
   );
 }

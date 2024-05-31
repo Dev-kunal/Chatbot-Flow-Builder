@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
-export default function Sidebar({
-  showSettings,
-  setShowSettings,
-  message,
-  setMessage,
-}) {
+import { setShowSettings, setMessageForSelectedNode } from "../app/appSlice";
+
+export default function Sidebar() {
+  const dispatch = useDispatch();
+  const showSettings = useSelector((state) => state.appState.showSettings);
+  const message = useSelector((state) => state.appState.messageForSelectedNode);
+
   const onDragStart = (event, nodeType) => {
     event.dataTransfer.setData("application/reactflow", nodeType);
     event.dataTransfer.effectAllowed = "move";
@@ -39,7 +40,7 @@ export default function Sidebar({
       ) : (
         <div className="flex-col border-b-2">
           <div className="flex border-b-2 p-2">
-            <button onClick={() => setShowSettings(false)}>
+            <button onClick={() => dispatch(setShowSettings({ value: false }))}>
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 fill="none"
@@ -71,7 +72,11 @@ export default function Sidebar({
                   cols="35"
                   rows="3"
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) =>
+                    dispatch(
+                      setMessageForSelectedNode({ message: e.target.value })
+                    )
+                  }
                 ></textarea>
               </label>
             </div>
